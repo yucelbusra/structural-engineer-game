@@ -770,7 +770,7 @@ function ensureHiDPI(canvas) {
           designSection.scrollIntoView?.({ behavior: 'smooth' });
         }
         
-        alert(`Load combination saved!\nLeading: ${combo.leading}\nULS: ${combo.results.ULS} kN/m\nSLS Rare: ${combo.results.SLS_rare} kN/m`);
+        alert(`Load combination saved!);
       });
     }
   
@@ -937,3 +937,4 @@ function ensureHiDPI(canvas) {
     });
 
   })();
+
