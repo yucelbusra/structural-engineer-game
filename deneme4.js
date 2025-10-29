@@ -316,7 +316,7 @@
         playError?.();
         mvFb.style.color = '#c26b00';
         mvFb.innerHTML = `❌ Check again.<br>
-          Expected M<sub>max</sub>=${exp.Mmax.toFixed(2)} kN·m, V<sub>max</sub>=${exp.Vmax.toFixed(2)} kN.`;
+          Remember,  Mmax = (w * L * L) / 8 kN·m and Vmax = (w * L) / 2 kN`;
         document.getElementById('continueToSummaryBtn').disabled = true;
       }
     }
@@ -521,14 +521,14 @@
       }
   
       // Fill γ (top)
-      fillSelectById('gammaG', GAMMA_OPTS, '1.35');
-      fillSelectById('gammaQ', GAMMA_OPTS, '1.5');
+      fillSelectById('gammaG', GAMMA_OPTS, '');
+      fillSelectById('gammaQ', GAMMA_OPTS, '');
   
       // Fill ψ for each action
       ['mobile', 'wind', 'snow'].forEach(a => {
-        fillSelectById(`psi0_${a}`, PSI_OPTS, '0.3');
-        fillSelectById(`psi1_${a}`, PSI_OPTS, 'No');
-        fillSelectById(`psi2_${a}`, PSI_OPTS, 'No');
+        fillSelectById(`psi0_${a}`, PSI_OPTS, '');
+        fillSelectById(`psi1_${a}`, PSI_OPTS, '');
+        fillSelectById(`psi2_${a}`, PSI_OPTS, '');
       });
   
       // Mutually exclusive leading radios; disable its "accompanying"
@@ -644,8 +644,7 @@
           playError();
           if (feedbackBox) {
             feedbackBox.innerHTML =
-              `❌ <strong>Incorrect.</strong><br>Expected E<sub>d</sub> = <strong>${expected2.toFixed(2)} kN/m</strong><br>` +
-              `You entered: <strong>${user2.toFixed(2)}</strong>`;
+              `❌ <strong>Incorrect.</strong> Check your Psi and Gamma values!`;
             feedbackBox.style.backgroundColor = '#fff3cd';
             feedbackBox.style.borderLeft = '4px solid #f39c12';
             feedbackBox.style.display = 'block';
