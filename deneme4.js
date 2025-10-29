@@ -1,3 +1,4 @@
+
 // deneme1.js
 (function () {
     // ---------- tiny helpers ----------
@@ -51,28 +52,25 @@
     const state = {
       beamCount: 0,
       currentLimitState: null,
-      totalScore: 100, // New: Initialize score
-      tributaryAttempts: 0, // New: Initialize attempts
+      totalScore: 100,
+      tributaryAttempts: 0,
+      tributaryPoints: 100, // ADD THIS - was missing!
+      canvasDrawn: false,  // ADD THIS for canvas tracking
 
-      // 👉 add this new block to store design results
       results: {
-        Ed: null,   // verified design load (kN/m)
-        Mmax: null, // user-entered bending moment (kN·m)
-        Vmax: null  // user-entered shear force (kN)
+        Ed: null,
+        Mmax: null,
+        Vmax: null
       }
     };
 
   
-  
-// REPLACE the ensureHiDPI function in your deneme4.js with this fixed version:
-
+// FIXED ensureHiDPI function
     function ensureHiDPI(canvas) {
       if (!canvas) return { dpr: 1, cw: 0, ch: 0 };
       
       const dpr = window.devicePixelRatio || 1;
       
-      // FIX: Get the ORIGINAL dimensions from data attributes or style
-      // This prevents the dimensions from growing each time
       let cssW, cssH;
       
       // First time: store the original dimensions
@@ -102,6 +100,24 @@
       
       return { dpr, cw: canvas.width, ch: canvas.height };
     }
+
+    function drawImageFit(srcCanvas, dstCanvas, bg = '#fff') {
+      if (!srcCanvas || !dstCanvas) return;
+      const ctx = dstCanvas.getContext('2d');
+      const { cw: DW, ch: DH } = ensureHiDPI(dstCanvas);
+      const SW = srcCanvas.width;
+      const SH = srcCanvas.height;
+      if (!SW || !SH) return;
+  
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, DW, DH);
+      if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, DW, DH); }
+  
+      const scale = Math.min(DW / SW, DH / SH);
+      const w = SW * scale, h = SH * scale;
+      const dx = (DW - w) / 2, dy = (DH - h) / 2;
+      ctx.drawImage(srcCanvas, 0, 0, SW, SH, dx, dy, w, h);
+    }
   
     // ---------- Badges ----------
     const BadgeSystem = (() => {
@@ -120,7 +136,6 @@
         render();
         const cfg = _state.meta.get(id);
         (cfg?.soundId && $(cfg.soundId)?.play) ? $(cfg.soundId).play() : $('successSound')?.play?.();
-        // New: Show notification
         showBadgeNotification(cfg?.title || 'New Badge');
       }
   
@@ -186,7 +201,6 @@
         const L = loadsLine();
         if (L.error) return { error: L.error };
   
-        // ψ per action
         const psi0 = {}, psi1 = {}, psi2 = {};
         ACTIONS.forEach(a => {
           psi0[a] = val(`psi0_${a}`, 0);
@@ -194,18 +208,15 @@
           psi2[a] = val(`psi2_${a}`, 0);
         });
   
-        // γ
         const gammaG = val('gammaG', 1.35);
-        const gammaQlead = val('gammaQ', 1.5); // same γQ for all variables here
+        const gammaQlead = val('gammaQ', 1.5);
   
-        // Accompanying flags
         const acc = {};
         ACTIONS.forEach(a => acc[a] = !!$(`acc_${a}`)?.checked);
         acc[lead] = false;
   
         const Qlead = L.Qk[lead] || 0;
   
-        // ULS: γG*G + γQ_lead*Qlead + Σ γQ*ψ0_i*Qi (accompanying)
         let sumULSacc = 0;
         ACTIONS.forEach(a => {
           if (a === lead || !acc[a]) return;
@@ -213,17 +224,14 @@
         });
         const Ed_ULS = gammaG * L.Gk + gammaQlead * Qlead + sumULSacc;
   
-        // SLS rare: G + Qlead + Σ ψ0_i*Qi
         let sumRare = 0;
         ACTIONS.forEach(a => { if (a !== lead && acc[a]) sumRare += psi0[a] * (L.Qk[a] || 0); });
         const Ed_SLS_rare = L.Gk + Qlead + sumRare;
   
-        // SLS frequent: G + ψ1_lead Qlead + Σ ψ2_i*Qi
         let sumFreq = 0;
         ACTIONS.forEach(a => { if (a !== lead && acc[a]) sumFreq += psi2[a] * (L.Qk[a] || 0); });
         const Ed_SLS_freq = L.Gk + psi1[lead] * Qlead + sumFreq;
   
-        // SLS quasi-permanent: G + ψ2_lead Qlead + Σ ψ2_i*Qi
         let sumQP = psi2[lead] * Qlead;
         ACTIONS.forEach(a => { if (a !== lead && acc[a]) sumQP += psi2[a] * (L.Qk[a] || 0); });
         const Ed_SLS_quasi = L.Gk + sumQP;
@@ -243,8 +251,6 @@
       return { computeAll };
     })();
   
-
-        // Compute verified Ed from the table + selected limit state
     function computeExpectedEd() {
       const combo = Eurocode.computeAll();
       if (combo.error) return { error: combo.error };
@@ -252,7 +258,6 @@
       return { Ed: Number(expected.toFixed(2)) };
     }
 
-    // Compute expected Mmax & Vmax from Ed and slab length L
     function computeExpectedMV() {
       const L = parseFloat(document.getElementById('inputLength')?.value);
       if (!Number.isFinite(L) || L <= 0) return { error: 'Please enter a valid slab Length (m) on the Slab screen.' };
@@ -260,13 +265,12 @@
       const edCalc = computeExpectedEd();
       if (edCalc.error) return { error: edCalc.error };
 
-      const w = edCalc.Ed; // kN/m
-      const Mmax = (w * L * L) / 8; // kN·m
-      const Vmax = (w * L) / 2;     // kN
+      const w = edCalc.Ed;
+      const Mmax = (w * L * L) / 8;
+      const Vmax = (w * L) / 2;
       return { Mmax: Number(Mmax.toFixed(2)), Vmax: Number(Vmax.toFixed(2)), Ed: w, L };
     }
 
-    // Check M & V, unlock badge if both correct, enable Summary button
     function checkMAndV() {
       const mvFb = document.getElementById('mvFeedback');
       const mUser = parseFloat(document.getElementById('mMaxInput')?.value);
@@ -280,11 +284,10 @@
       const exp = computeExpectedMV();
       if (exp.error) { alert(exp.error); return; }
 
-      const tol = 0.10; // absolute tolerance (adjust if desired)
+      const tol = 0.10;
       const mOk = Math.abs(Number(mUser.toFixed(2)) - exp.Mmax) <= tol;
       const vOk = Math.abs(Number(vUser.toFixed(2)) - exp.Vmax) <= tol;
 
-      // Save user results
       state.results.Mmax = Number(mUser.toFixed(2));
       state.results.Vmax = Number(vUser.toFixed(2));
 
@@ -292,7 +295,6 @@
         playSuccess?.();
         mvFb.style.color = '#2ecc71';
         mvFb.innerHTML = `✅ Correct! Expected M<sub>max</sub>=${exp.Mmax.toFixed(2)} kN·m, V<sub>max</sub>=${exp.Vmax.toFixed(2)} kN.`;
-        // Optional: unlock a badge id you have in your catalog (e.g., 'strength')
         BadgeSystem?.earn?.('strength');
         document.getElementById('continueToSummaryBtn').disabled = false;
       } else {
@@ -304,40 +306,35 @@
       }
     }
     
-// Show final summary
     function showSummary() {
-    // Ensure Ed stored
-    if (state.results.Ed == null) {
+      if (state.results.Ed == null) {
         const ed = computeExpectedEd();
         if (!ed.error) state.results.Ed = ed.Ed;
-    }
-    
-    // FIX: Hide the M/V input panel when showing the summary screen
-    document.getElementById('mvPanel')?.style?.setProperty('display', 'none'); 
+      }
+      
+      document.getElementById('mvPanel')?.style?.setProperty('display', 'none'); 
 
-    const earnedCount = document.querySelectorAll('#badgeBar .badge:not(.locked)').length;
-    // Get the total score from the state object, using a dash if undefined
-    const totalScore = state.totalScore ?? '-'; 
+      const earnedCount = document.querySelectorAll('#badgeBar .badge:not(.locked)').length;
+      const totalScore = state.totalScore ?? '-'; 
 
-    const p = document.getElementById('finalScore');
-    if (p) {
+      const p = document.getElementById('finalScore');
+      if (p) {
         p.innerHTML = `
         <div style="text-align:left; max-width:560px;">
-            <h3>Session Summary</h3>
-            <ul>
-            <li>Final Score: <b>${totalScore}</b></li> <li>Badges earned: <b>${earnedCount}</b></li>
+          <h3>Session Summary</h3>
+          <ul>
+            <li>Final Score: <b>${totalScore}</b></li>
+            <li>Badges earned: <b>${earnedCount}</b></li>
             <li>E<sub>d</sub>: <b>${(state.results.Ed ?? '-')}</b> kN/m</li>
             <li>M<sub>max</sub> (your answer): <b>${(state.results.Mmax ?? '-')}</b> kN·m</li>
             <li>V<sub>max</sub> (your answer): <b>${(state.results.Vmax ?? '-')}</b> kN</li>
-            </ul>
+          </ul>
         </div>`;
-    }
-    showScreen('resultScreen');
-    updateProgress?.(6);
+      }
+      showScreen('resultScreen');
+      updateProgress?.(6);
     }
 
-
-    // ---------- Slab drawing ----------
     function drawSlab(width, length, spacing, beamCount) {
       const canvas = $('slabCanvas');
       if (!canvas) return;
@@ -385,7 +382,6 @@
       ctx.fillText(spacingLabel, (bayStartX + bayEndX) / 2 - textW / 2, dimY + 14 * dpr);
     }
   
-    // ---------- Load images & combinations ----------
     function updateCombinedLoadImage() {
       const combinedImageDiv = $('combinedLoadImage');
       const toggleBtn = $('toggleCombinedBtn');
@@ -477,7 +473,6 @@
       }
     }
   
-    // ---------- Compact table initialiser ----------
     function initCompactComboUI() {
       const PSI_OPTS = [
         { label: 'No', value: 'none' },
@@ -503,18 +498,15 @@
         if (defVal != null) el.value = defVal;
       }
   
-      // Fill γ (top)
       fillSelectById('gammaG', GAMMA_OPTS, '');
       fillSelectById('gammaQ', GAMMA_OPTS, '');
   
-      // Fill ψ for each action
       ['mobile', 'wind', 'snow'].forEach(a => {
         fillSelectById(`psi0_${a}`, PSI_OPTS, '');
         fillSelectById(`psi1_${a}`, PSI_OPTS, '');
         fillSelectById(`psi2_${a}`, PSI_OPTS, '');
       });
   
-      // Mutually exclusive leading radios; disable its "accompanying"
       const leadRadios = document.querySelectorAll('input[name="leadingAction"]');
       function enforceAccDisabling() {
         const lead = document.querySelector('input[name="leadingAction"]:checked')?.value;
@@ -529,7 +521,6 @@
       enforceAccDisabling();
     }
   
-    // ---------- Limit state selection ----------
     function wireLimitState() {
       const chooseSLSBtn = $('chooseSLSBtn');
       const chooseULSBtn = $('chooseULSBtn');
@@ -925,3 +916,4 @@
     });
 
   })();
+
