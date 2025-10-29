@@ -51,7 +51,7 @@
     const state = {
       beamCount: 0,
       currentLimitState: null,
-      tributaryPoints: 100, // New: Initialize score
+      totalScore: 100, // New: Initialize score
       tributaryAttempts: 0, // New: Initialize attempts
 
       // 👉 add this new block to store design results
@@ -64,59 +64,60 @@
 
   
     // ---------- Canvas utilities ----------
-function ensureHiDPI(canvas) {
-  if (!canvas) return { dpr: 1, cw: 0, ch: 0 };
+    function ensureHiDPI(canvas) {
+      if (!canvas) return { dpr: 1, cw: 0, ch: 0 };
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = canvas.getAttribute('width') ? Number(canvas.getAttribute('width')) : canvas.clientWidth || 400;
+      const cssH = canvas.getAttribute('height') ? Number(canvas.getAttribute('height')) : canvas.clientHeight || 400;
   
-  const dpr = window.devicePixelRatio || 1;
+      const applied = canvas._hidpi || { w: 0, h: 0, dpr: 1 };
+      if (applied.w !== cssW || applied.h !== cssH || applied.dpr !== dpr) {
+        canvas.style.width = cssW + 'px';
+        canvas.style.height = cssH + 'px';
+        canvas.width = Math.max(1, Math.round(cssW * dpr));
+        canvas.height = Math.max(1, Math.round(cssH * dpr));
+        canvas._hidpi = { w: cssW, h: cssH, dpr };
+      }
+      return { dpr, cw: canvas.width, ch: canvas.height };
+    }
   
-  // FIX: Get the ORIGINAL dimensions from data attributes or style
-  // This prevents the dimensions from growing each time
-  let cssW, cssH;
-  
-  // First time: store the original dimensions
-  if (!canvas.dataset.originalWidth) {
-    cssW = canvas.getAttribute('width') ? Number(canvas.getAttribute('width')) : canvas.clientWidth || 400;
-    cssH = canvas.getAttribute('height') ? Number(canvas.getAttribute('height')) : canvas.clientHeight || 400;
-    
-    // Store original dimensions
-    canvas.dataset.originalWidth = cssW;
-    canvas.dataset.originalHeight = cssH;
-  } else {
-    // Use stored original dimensions
-    cssW = Number(canvas.dataset.originalWidth);
-    cssH = Number(canvas.dataset.originalHeight);
-  }
+// REPLACE the ensureHiDPI function in your deneme4.js with this fixed version:
 
-  const applied = canvas._hidpi || { w: 0, h: 0, dpr: 1 };
-  
-  // Only update if dimensions or DPR changed
-  if (applied.w !== cssW || applied.h !== cssH || applied.dpr !== dpr) {
-    canvas.style.width = cssW + 'px';
-    canvas.style.height = cssH + 'px';
-    canvas.width = Math.max(1, Math.round(cssW * dpr));
-    canvas.height = Math.max(1, Math.round(cssH * dpr));
-    canvas._hidpi = { w: cssW, h: cssH, dpr };
-  }
-  
-  return { dpr, cw: canvas.width, ch: canvas.height };
-}
-  
-    function drawImageFit(srcCanvas, dstCanvas, bg = '#fff') {
-      if (!srcCanvas || !dstCanvas) return;
-      const ctx = dstCanvas.getContext('2d');
-      const { cw: DW, ch: DH } = ensureHiDPI(dstCanvas);
-      const SW = srcCanvas.width;
-      const SH = srcCanvas.height;
-      if (!SW || !SH) return;
-  
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, DW, DH);
-      if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, DW, DH); }
-  
-      const scale = Math.min(DW / SW, DH / SH);
-      const w = SW * scale, h = SH * scale;
-      const dx = (DW - w) / 2, dy = (DH - h) / 2;
-      ctx.drawImage(srcCanvas, 0, 0, SW, SH, dx, dy, w, h);
+    function ensureHiDPI(canvas) {
+      if (!canvas) return { dpr: 1, cw: 0, ch: 0 };
+      
+      const dpr = window.devicePixelRatio || 1;
+      
+      // FIX: Get the ORIGINAL dimensions from data attributes or style
+      // This prevents the dimensions from growing each time
+      let cssW, cssH;
+      
+      // First time: store the original dimensions
+      if (!canvas.dataset.originalWidth) {
+        cssW = canvas.getAttribute('width') ? Number(canvas.getAttribute('width')) : canvas.clientWidth || 400;
+        cssH = canvas.getAttribute('height') ? Number(canvas.getAttribute('height')) : canvas.clientHeight || 400;
+        
+        // Store original dimensions
+        canvas.dataset.originalWidth = cssW;
+        canvas.dataset.originalHeight = cssH;
+      } else {
+        // Use stored original dimensions
+        cssW = Number(canvas.dataset.originalWidth);
+        cssH = Number(canvas.dataset.originalHeight);
+      }
+
+      const applied = canvas._hidpi || { w: 0, h: 0, dpr: 1 };
+      
+      // Only update if dimensions or DPR changed
+      if (applied.w !== cssW || applied.h !== cssH || applied.dpr !== dpr) {
+        canvas.style.width = cssW + 'px';
+        canvas.style.height = cssH + 'px';
+        canvas.width = Math.max(1, Math.round(cssW * dpr));
+        canvas.height = Math.max(1, Math.round(cssH * dpr));
+        canvas._hidpi = { w: cssW, h: cssH, dpr };
+      }
+      
+      return { dpr, cw: canvas.width, ch: canvas.height };
     }
   
     // ---------- Badges ----------
@@ -320,30 +321,36 @@ function ensureHiDPI(canvas) {
       }
     }
     
-    // Show final summary
+// Show final summary
     function showSummary() {
-      // Ensure Ed stored
-      if (state.results.Ed == null) {
+    // Ensure Ed stored
+    if (state.results.Ed == null) {
         const ed = computeExpectedEd();
         if (!ed.error) state.results.Ed = ed.Ed;
-      }
-      const earnedCount = document.querySelectorAll('#badgeBar .badge:not(.locked)').length;
-      const p = document.getElementById('finalScore');
-      if (p) {
+    }
+    
+    // FIX: Hide the M/V input panel when showing the summary screen
+    document.getElementById('mvPanel')?.style?.setProperty('display', 'none'); 
+
+    const earnedCount = document.querySelectorAll('#badgeBar .badge:not(.locked)').length;
+    // Get the total score from the state object, using a dash if undefined
+    const totalScore = state.totalScore ?? '-'; 
+
+    const p = document.getElementById('finalScore');
+    if (p) {
         p.innerHTML = `
-          <div style="text-align:left; max-width:560px;">
+        <div style="text-align:left; max-width:560px;">
             <h3>Session Summary</h3>
             <ul>
-              <li>Total Score: <b>${state.tributaryPoints}</b> points</li>
-              <li>Badges earned: <b>${earnedCount}</b></li>
-              <li>E<sub>d</sub>: <b>${(state.results.Ed ?? '-')}</b> kN/m</li>
-              <li>M<sub>max</sub> (your answer): <b>${(state.results.Mmax ?? '-')}</b> kN·m</li>
-              <li>V<sub>max</sub> (your answer): <b>${(state.results.Vmax ?? '-')}</b> kN</li>
+            <li>Final Score: <b>${totalScore}</b></li> <li>Badges earned: <b>${earnedCount}</b></li>
+            <li>E<sub>d</sub>: <b>${(state.results.Ed ?? '-')}</b> kN/m</li>
+            <li>M<sub>max</sub> (your answer): <b>${(state.results.Mmax ?? '-')}</b> kN·m</li>
+            <li>V<sub>max</sub> (your answer): <b>${(state.results.Vmax ?? '-')}</b> kN</li>
             </ul>
-          </div>`;
-      }
-      showScreen('resultScreen');
-      updateProgress?.(6);
+        </div>`;
+    }
+    showScreen('resultScreen');
+    updateProgress?.(6);
     }
 
 
@@ -606,9 +613,10 @@ function ensureHiDPI(canvas) {
         }
 
         const expected = (state.currentLimitState === 'ULS') ? combo.results.ULS : combo.results.SLS_rare;
-        const expected2 = Number(expected.toFixed(2));
+        const expected2 = Number(expected.toFixed(2)); // The *correct* value, rounded to 2 decimal places
         const user2 = Number(userVal.toFixed(2));
-        const ok = Math.abs(user2 - expected2) <= tol;
+
+        const ok = Math.abs(user2 - expected2) <= tol; // Check if user's value is within tolerance
 
         if (ok) {
           // ✅ SUCCESS BRANCH
@@ -769,8 +777,6 @@ function ensureHiDPI(canvas) {
           designSection.style.display = 'block';
           designSection.scrollIntoView?.({ behavior: 'smooth' });
         }
-        
-        alert(`Load combination saved!);
       });
     }
   
@@ -935,6 +941,4 @@ function ensureHiDPI(canvas) {
         showScreen('tributaryScreen'); 
       });
     });
-
   })();
-
