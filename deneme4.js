@@ -64,22 +64,42 @@
 
   
     // ---------- Canvas utilities ----------
-    function ensureHiDPI(canvas) {
-      if (!canvas) return { dpr: 1, cw: 0, ch: 0 };
-      const dpr = window.devicePixelRatio || 1;
-      const cssW = canvas.getAttribute('width') ? Number(canvas.getAttribute('width')) : canvas.clientWidth || 400;
-      const cssH = canvas.getAttribute('height') ? Number(canvas.getAttribute('height')) : canvas.clientHeight || 400;
+function ensureHiDPI(canvas) {
+  if (!canvas) return { dpr: 1, cw: 0, ch: 0 };
   
-      const applied = canvas._hidpi || { w: 0, h: 0, dpr: 1 };
-      if (applied.w !== cssW || applied.h !== cssH || applied.dpr !== dpr) {
-        canvas.style.width = cssW + 'px';
-        canvas.style.height = cssH + 'px';
-        canvas.width = Math.max(1, Math.round(cssW * dpr));
-        canvas.height = Math.max(1, Math.round(cssH * dpr));
-        canvas._hidpi = { w: cssW, h: cssH, dpr };
-      }
-      return { dpr, cw: canvas.width, ch: canvas.height };
-    }
+  const dpr = window.devicePixelRatio || 1;
+  
+  // FIX: Get the ORIGINAL dimensions from data attributes or style
+  // This prevents the dimensions from growing each time
+  let cssW, cssH;
+  
+  // First time: store the original dimensions
+  if (!canvas.dataset.originalWidth) {
+    cssW = canvas.getAttribute('width') ? Number(canvas.getAttribute('width')) : canvas.clientWidth || 400;
+    cssH = canvas.getAttribute('height') ? Number(canvas.getAttribute('height')) : canvas.clientHeight || 400;
+    
+    // Store original dimensions
+    canvas.dataset.originalWidth = cssW;
+    canvas.dataset.originalHeight = cssH;
+  } else {
+    // Use stored original dimensions
+    cssW = Number(canvas.dataset.originalWidth);
+    cssH = Number(canvas.dataset.originalHeight);
+  }
+
+  const applied = canvas._hidpi || { w: 0, h: 0, dpr: 1 };
+  
+  // Only update if dimensions or DPR changed
+  if (applied.w !== cssW || applied.h !== cssH || applied.dpr !== dpr) {
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    canvas.width = Math.max(1, Math.round(cssW * dpr));
+    canvas.height = Math.max(1, Math.round(cssH * dpr));
+    canvas._hidpi = { w: cssW, h: cssH, dpr };
+  }
+  
+  return { dpr, cw: canvas.width, ch: canvas.height };
+}
   
     function drawImageFit(srcCanvas, dstCanvas, bg = '#fff') {
       if (!srcCanvas || !dstCanvas) return;
@@ -915,4 +935,5 @@
         showScreen('tributaryScreen'); 
       });
     });
+
   })();
