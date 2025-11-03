@@ -881,7 +881,7 @@
       on($('toggleCombinedBtn'), 'click', () => { playClick(); toggleCombinedLoadImage(); updateProgress(3); });
   
       // Hints
-      on($('hintPsiBtn'), 'click', () => { $('hintImage') && ($('hintImage').src = './img/psi-factors.png'); $('hintModal') && ( $('hintModal').style.display = 'flex' ); });
+      on($('hintPsiBtn'), 'click', () => { $('hintImage') && ($('hintImage').src = './img/psi-factors.PNG'); $('hintModal') && ( $('hintModal').style.display = 'flex' ); });
       on($('hintGammaBtn'), 'click', () => { $('hintImage') && ($('hintImage').src = './img/gamma-factors.PNG'); $('hintModal') && ( $('hintModal').style.display = 'flex' ); });
       on($('closeHintModal'), 'click', () => { $('hintModal') && ( $('hintModal').style.display = 'none' ); });
   
@@ -916,5 +916,6 @@
     });
 
   })();
+
 
 
